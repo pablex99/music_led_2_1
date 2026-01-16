@@ -28,7 +28,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Controlador RGB')),
+      appBar: AppBar(
+        title: const Text('Controlador RGB', style: TextStyle(fontFamily: 'PressStart2P', fontSize: 16)),
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -112,11 +115,11 @@ class _ManualControlSectionState extends State<ManualControlSection> {
             ElevatedButton(
               onPressed: isConnected ? null : connectBluetooth,
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                minimumSize: const Size(80, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                minimumSize: const Size(70, 26),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
             ),
             const SizedBox(width: 12),
             ElevatedButton(
@@ -127,11 +130,11 @@ class _ManualControlSectionState extends State<ManualControlSection> {
                     }
                   : null,
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                minimumSize: const Size(80, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                minimumSize: const Size(70, 26),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Aplicar color', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              child: const Text('Aplicar color', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
             ),
           ],
         ),
@@ -296,21 +299,21 @@ class _MusicControlSectionState extends State<MusicControlSection> {
             ElevatedButton(
               onPressed: isConnected ? null : connectBluetooth,
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                minimumSize: const Size(80, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                minimumSize: const Size(70, 26),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
             ),
             const SizedBox(width: 12),
             ElevatedButton(
               onPressed: isConnected ? sendMusicConfig : null,
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                minimumSize: const Size(80, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                minimumSize: const Size(70, 26),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Aplicar configuración', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
             ),
           ],
         ),
