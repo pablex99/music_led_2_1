@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'color_wheel_picker.dart';
 import 'bluetooth_service.dart';
@@ -50,42 +49,65 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Controlador RGB', style: TextStyle(fontFamily: 'PressStart2P', fontSize: 16)),
-        centerTitle: true,
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFF000000),
+            Color(0xFF0A0A0A),
+            Color(0xFF002B36),
+            Color(0xFF000000),
+          ],
+        ),
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(modes.length, (i) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: ElevatedButton.icon(
-                    icon: Icon(modes[i].icon, size: 16),
-                    label: Text(modes[i].name, style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedMode == i ? Colors.blue : Colors.grey[300],
-                      foregroundColor: selectedMode == i ? Colors.white : Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      minimumSize: const Size(80, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Controlador RGB'),
+          centerTitle: true,
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(modes.length, (i) => Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: ElevatedButton(
+                      onPressed: () => setState(() => selectedMode = i),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(modes[i].icon, size: 16, color: const Color(0xFF00FFFF)),
+                          const SizedBox(width: 4),
+                          Text(modes[i].name, style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
+                        ],
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: selectedMode == i ? const Color(0xFF002B36) : Colors.grey[900],
+                        foregroundColor: const Color(0xFF00FFFF),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        minimumSize: const Size(80, 32),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        side: BorderSide(color: selectedMode == i ? const Color(0xFF00FFFF) : Colors.transparent, width: 2),
+                        elevation: selectedMode == i ? 6 : 0,
+                      ),
                     ),
-                    onPressed: () => setState(() => selectedMode = i),
-                  ),
-                )),
-              ),
-              const SizedBox(height: 32),
-              Text(statusMsg, style: const TextStyle(color: Colors.purple, fontFamily: 'PressStart2P', fontSize: 10)),
-              if (selectedMode == 0) ManualControlSection(btService: btService, isConnected: isConnected),
-              if (selectedMode == 1) MusicControlSection(btService: btService, isConnected: isConnected),
-              if (selectedMode == 2) RainbowControlSection(btService: btService, isConnected: isConnected),
-            ],
+                  )),
+                ),
+                const SizedBox(height: 32),
+                Text(statusMsg, style: const TextStyle(color: Color(0xFF00FFFF), fontFamily: 'PressStart2P', fontSize: 10)),
+                if (selectedMode == 0) ManualControlSection(btService: btService, isConnected: isConnected),
+                if (selectedMode == 1) MusicControlSection(btService: btService, isConnected: isConnected),
+                if (selectedMode == 2) RainbowControlSection(btService: btService, isConnected: isConnected),
+              ],
+            ),
           ),
         ),
       ),
@@ -134,7 +156,7 @@ class _ManualControlSectionState extends State<ManualControlSection> {
                 minimumSize: const Size(70, 26),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
-              child: const Text('Aplicar color', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
+              child: const Text('Aplicar color', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
             ),
           ],
         ),
@@ -278,19 +300,14 @@ class _MusicControlSectionState extends State<MusicControlSection> {
           Text('${musicStepMs.round()} ms', style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
         ],
         const SizedBox(height: 16),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton(
-              onPressed: widget.isConnected ? sendMusicConfig : null,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                minimumSize: const Size(70, 26),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
-            ),
-          ],
+        ElevatedButton(
+          onPressed: widget.isConnected ? sendMusicConfig : null,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            minimumSize: const Size(70, 26),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
         ),
         const SizedBox(height: 8),
         Text(statusMsg, style: const TextStyle(color: Colors.purple, fontFamily: 'PressStart2P', fontSize: 10)),
@@ -370,7 +387,7 @@ class _RainbowControlSectionState extends State<RainbowControlSection> {
             minimumSize: const Size(70, 26),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
-          child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
+          child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
         ),
         const SizedBox(height: 8),
         Text(statusMsg, style: const TextStyle(color: Colors.purple, fontFamily: 'PressStart2P', fontSize: 10)),
