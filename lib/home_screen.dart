@@ -24,6 +24,29 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedMode = 0;
+  BluetoothService btService = BluetoothService();
+  bool isConnected = false;
+  String statusMsg = '';
+
+  @override
+  void initState() {
+    super.initState();
+    connectBluetooth();
+  }
+
+  Future<void> connectBluetooth() async {
+    setState(() { statusMsg = 'Buscando dispositivos...'; });
+    var devices = await btService.scanForDevices();
+    if (devices.isNotEmpty) {
+      bool ok = await btService.connectToDevice(devices.first);
+      setState(() {
+        isConnected = ok;
+        statusMsg = ok ? 'Conectado a ${devices.first.name}' : 'No se pudo conectar';
+      });
+    } else {
+      setState(() { statusMsg = 'No se encontraron dispositivos.'; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +62,6 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 16),
-              // Barra de modos
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(modes.length, (i) => Padding(
@@ -59,10 +81,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 )),
               ),
               const SizedBox(height: 32),
-              if (selectedMode == 0) ManualControlSection(),
-              if (selectedMode == 1) MusicControlSection(),
-              if (selectedMode == 2) RainbowControlSection(),
-            ], // <-- cierre correcto del array children
+              Text(statusMsg, style: const TextStyle(color: Colors.purple, fontFamily: 'PressStart2P', fontSize: 10)),
+              if (selectedMode == 0) ManualControlSection(btService: btService, isConnected: isConnected),
+              if (selectedMode == 1) MusicControlSection(btService: btService, isConnected: isConnected),
+              if (selectedMode == 2) RainbowControlSection(btService: btService, isConnected: isConnected),
+            ],
           ),
         ),
       ),
@@ -73,7 +96,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 class ManualControlSection extends StatefulWidget {
-  const ManualControlSection({Key? key}) : super(key: key);
+  final BluetoothService btService;
+  final bool isConnected;
+  const ManualControlSection({Key? key, required this.btService, required this.isConnected}) : super(key: key);
   @override
   State<ManualControlSection> createState() => _ManualControlSectionState();
 }
@@ -81,22 +106,7 @@ class ManualControlSection extends StatefulWidget {
 class _ManualControlSectionState extends State<ManualControlSection> {
   Color selectedColor = Colors.blue;
   String statusMsg = '';
-  BluetoothService btService = BluetoothService();
-  bool isConnected = false;
 
-  Future<void> connectBluetooth() async {
-    setState(() { statusMsg = 'Buscando dispositivos...'; });
-    var devices = await btService.scanForDevices();
-    if (devices.isNotEmpty) {
-      bool ok = await btService.connectToDevice(devices.first);
-      setState(() {
-        isConnected = ok;
-        statusMsg = ok ? 'Conectado a ${devices.first.name}' : 'No se pudo conectar';
-      });
-    } else {
-      setState(() { statusMsg = 'No se encontraron dispositivos.'; });
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,19 +123,9 @@ class _ManualControlSectionState extends State<ManualControlSection> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: isConnected ? null : connectBluetooth,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                minimumSize: const Size(70, 26),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: isConnected
+              onPressed: widget.isConnected
                   ? () async {
-                      await btService.sendColor(selectedColor);
+                      await widget.btService.sendColor(selectedColor);
                       setState(() { statusMsg = 'Color enviado: #${selectedColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}'; });
                     }
                   : null,
@@ -148,7 +148,9 @@ class _ManualControlSectionState extends State<ManualControlSection> {
 
 
 class MusicControlSection extends StatefulWidget {
-  const MusicControlSection({Key? key}) : super(key: key);
+  final BluetoothService btService;
+  final bool isConnected;
+  const MusicControlSection({Key? key, required this.btService, required this.isConnected}) : super(key: key);
   @override
   State<MusicControlSection> createState() => _MusicControlSectionState();
 }
@@ -157,33 +159,16 @@ class _MusicControlSectionState extends State<MusicControlSection> {
   double beatThreshold = 400;
   int musicSubmode = 0; // 0 = monocolor, 1 = multicolor
   double musicStepMs = 200;
-  BluetoothService btService = BluetoothService();
   String statusMsg = '';
-  bool isConnected = false;
 
-  Future<void> connectBluetooth() async {
-    setState(() { statusMsg = 'Buscando dispositivos...'; });
-    var devices = await btService.scanForDevices();
-    if (devices.isNotEmpty) {
-      bool ok = await btService.connectToDevice(devices.first);
-      setState(() {
-        isConnected = ok;
-        statusMsg = ok ? 'Conectado a ${devices.first.name}' : 'No se pudo conectar';
-      });
-    } else {
-      setState(() { statusMsg = 'No se encontraron dispositivos.'; });
-    }
-  }
 
   Future<void> sendMusicConfig() async {
-    if (btService.ledCharacteristic != null) {
-      String msg = 'MUSIC,${beatThreshold.round()},$musicSubmode,${musicStepMs.round()}';
-      await btService.ble.writeCharacteristicWithResponse(
-        btService.ledCharacteristic!,
-        value: msg.codeUnits,
-      );
-      setState(() { statusMsg = 'Configuración enviada'; });
-    }
+    await widget.btService.sendMusicConfig(
+      beatThreshold: beatThreshold,
+      musicSubmode: musicSubmode,
+      musicStepMs: musicStepMs,
+    );
+    setState(() { statusMsg = 'Configuración enviada'; });
   }
 
   @override
@@ -297,17 +282,7 @@ class _MusicControlSectionState extends State<MusicControlSection> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             ElevatedButton(
-              onPressed: isConnected ? null : connectBluetooth,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                minimumSize: const Size(70, 26),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: isConnected ? sendMusicConfig : null,
+              onPressed: widget.isConnected ? sendMusicConfig : null,
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                 minimumSize: const Size(70, 26),
@@ -327,7 +302,9 @@ class _MusicControlSectionState extends State<MusicControlSection> {
 
 
 class RainbowControlSection extends StatefulWidget {
-  const RainbowControlSection({Key? key}) : super(key: key);
+  final BluetoothService btService;
+  final bool isConnected;
+  const RainbowControlSection({Key? key, required this.btService, required this.isConnected}) : super(key: key);
   @override
   State<RainbowControlSection> createState() => _RainbowControlSectionState();
 }
@@ -335,33 +312,15 @@ class RainbowControlSection extends StatefulWidget {
 class _RainbowControlSectionState extends State<RainbowControlSection> {
   double rainbowSpeed = 30; // ms entre pasos
   double rainbowBrightness = 100; // porcentaje
-  BluetoothService btService = BluetoothService();
   String statusMsg = '';
-  bool isConnected = false;
 
-  Future<void> connectBluetooth() async {
-    setState(() { statusMsg = 'Buscando dispositivos...'; });
-    var devices = await btService.scanForDevices();
-    if (devices.isNotEmpty) {
-      bool ok = await btService.connectToDevice(devices.first);
-      setState(() {
-        isConnected = ok;
-        statusMsg = ok ? 'Conectado a ${devices.first.name}' : 'No se pudo conectar';
-      });
-    } else {
-      setState(() { statusMsg = 'No se encontraron dispositivos.'; });
-    }
-  }
 
   Future<void> sendRainbowConfig() async {
-    if (btService.ledCharacteristic != null) {
-      String msg = 'RAINBOW,${rainbowSpeed.round()},${rainbowBrightness.round()}';
-      await btService.ble.writeCharacteristicWithResponse(
-        btService.ledCharacteristic!,
-        value: msg.codeUnits,
-      );
-      setState(() { statusMsg = 'Configuración enviada'; });
-    }
+    await widget.btService.sendRainbowConfig(
+      rainbowSpeed: rainbowSpeed,
+      rainbowBrightness: rainbowBrightness,
+    );
+    setState(() { statusMsg = 'Configuración enviada'; });
   }
 
   @override
@@ -404,61 +363,14 @@ class _RainbowControlSectionState extends State<RainbowControlSection> {
         ),
         Text('${rainbowBrightness.round()}%', style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
         const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < 300) {
-              // Pantallas pequeñas: botones uno debajo del otro
-              return Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: isConnected ? null : connectBluetooth,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
-                  ),
-                  const SizedBox(height: 6),
-                  ElevatedButton(
-                    onPressed: isConnected ? sendRainbowConfig : null,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
-                  ),
-                ],
-              );
-            } else {
-              // Pantallas normales: botones en fila, más pequeños
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  ElevatedButton(
-                    onPressed: isConnected ? null : connectBluetooth,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text('Conectar Bluetooth', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: isConnected ? sendRainbowConfig : null,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
-                  ),
-                ],
-              );
-            }
-          },
+        ElevatedButton(
+          onPressed: widget.isConnected ? sendRainbowConfig : null,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            minimumSize: const Size(70, 26),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          child: const Text('Aplicar configuración', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
         ),
         const SizedBox(height: 8),
         Text(statusMsg, style: const TextStyle(color: Colors.purple, fontFamily: 'PressStart2P', fontSize: 10)),

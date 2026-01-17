@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+		<key>NSBluetoothAlwaysUsageDescription</key>
+		<string>Esta app necesita acceso Bluetooth para encontrar el dispositivo MusicLED-ESP32.</string>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>Esta app necesita acceso a la ubicación para escanear dispositivos BLE.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
