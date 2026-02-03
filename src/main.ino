@@ -1,3 +1,7 @@
+
+// ===============================
+// INCLUDES
+// ===============================
 #include <Arduino.h>
 #include <BLEDevice.h>
 #include <BLEServer.h>
@@ -5,23 +9,11 @@
 #include <BLE2902.h>
 #include <arduinoFFT.h>
 
-// Callback para reiniciar advertising tras desconexión BLE
-class MyServerCallbacks: public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) {
-    Serial.println("[BLE] Dispositivo conectado");
-  }
-  void onDisconnect(BLEServer* pServer) {
-    Serial.println("[BLE] Dispositivo desconectado, reiniciando advertising");
-    BLEDevice::getAdvertising()->start();
-  }
-};
-
-#include <Arduino.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
-#include <arduinoFFT.h>
+// ===============================
+// DEFINES Y UUIDs BLE
+// ===============================
+#define SERVICE_UUID        "0000ffe0-0000-1000-8000-00805f9b34fb"
+#define CHARACTERISTIC_UUID "0000ffe1-0000-1000-8000-00805f9b34fb"
 
 // ===============================
 // CONFIGURACIÓN DE PINES
@@ -30,6 +22,25 @@ const int micPin = 35;      // Entrada del micrófono (MAX9814 OUT)
 const int redPin = 26;      // PWM para canal Rojo
 const int greenPin = 27;    // PWM para canal Verde  
 const int bluePin = 33;     // PWM para canal Azul
+
+// ===============================
+// CONFIGURACIÓN PWM
+// ===============================
+const int pwmFreq = 5000;
+const int pwmResolution = 8;
+const int pwmMax = 255;
+const int redChannel = 0;
+const int greenChannel = 1;
+const int blueChannel = 2;
+
+// ===============================
+// CONFIGURACIÓN FFT (ANÁLISIS DE AUDIO)
+// ===============================
+const int samples = 512;
+const double samplingFrequency = 4000.0;
+double vReal[samples];
+double vImag[samples];
+ArduinoFFT<double> FFT(vReal, vImag, samples, samplingFrequency);
 
 // ===============================
 // VARIABLES DE MODOS DE OPERACIÓN
@@ -45,25 +56,6 @@ unsigned long lastColorChange = 0;
 int rainbowHue = 0;
 unsigned long rainbowIntervalMs = 30; // default 30ms per step
 float rainbowBrightness = 1.0; // 1.0 = 100%
-
-// ===============================
-// CONFIGURACIÓN FFT (ANÁLISIS DE AUDIO)
-// ===============================
-const int samples = 512;
-const double samplingFrequency = 4000.0;
-double vReal[samples];
-double vImag[samples];
-ArduinoFFT<double> FFT(vReal, vImag, samples, samplingFrequency);
-
-// ===============================
-// CONFIGURACIÓN PWM
-// ===============================
-const int pwmFreq = 5000;
-const int pwmResolution = 8;
-const int pwmMax = 255;
-const int redChannel = 0;
-const int greenChannel = 1;
-const int blueChannel = 2;
 
 // ===============================
 // VARIABLES PARA DETECCIÓN DE BEAT
@@ -93,13 +85,63 @@ unsigned long lastMusicStepTime = 0;
 int redVal = 0, greenVal = 0, blueVal = 0;
 int musicRed = 0, musicGreen = 0, musicBlue = 255;
 
-// BLE UUIDs
-#define SERVICE_UUID        "0000ffe0-0000-1000-8000-00805f9b34fb"
-#define CHARACTERISTIC_UUID "0000ffe1-0000-1000-8000-00805f9b34fb"
-
+// ===============================
+// OBJETOS BLE
+// ===============================
 BLECharacteristic *pCharacteristic;
 
+// ===============================
+// CALLBACKS BLE
+// ===============================
+class MyServerCallbacks: public BLEServerCallbacks {
+  void onConnect(BLEServer* pServer) {
+    Serial.println("[BLE] Dispositivo conectado");
+  }
+  void onDisconnect(BLEServer* pServer) {
+    Serial.println("[BLE] Dispositivo desconectado, reiniciando advertising");
+    BLEDevice::getAdvertising()->start();
+  }
+};
 
+class MyCallbacks: public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic) {
+    std::string value = pCharacteristic->getValue();
+    if (value.length() > 0) {
+      Serial.print("[BLE] Comando recibido: ");
+      Serial.println(value.c_str());
+      // Espera comandos tipo: MANUAL,R,G,B | MUSIC,thresh,submode,step | RAINBOW,speed,brightness
+      if (value.find("MANUAL,") == 0) {
+        int r, g, b;
+        sscanf(value.c_str(), "MANUAL,%d,%d,%d", &r, &g, &b);
+        Serial.printf("[BLE] Modo MANUAL: R=%d G=%d B=%d\n", r, g, b);
+        setManualMode();
+        setColor(r, g, b);
+      } else if (value.find("MUSIC,") == 0) {
+        setMusicMode();
+        int thresh = 400, submode = 0, step = 200;
+        sscanf(value.c_str(), "MUSIC,%d,%d,%d", &thresh, &submode, &step);
+        Serial.printf("[BLE] Modo MUSIC: thresh=%d submode=%d step=%d\n", thresh, submode, step);
+        beatThreshold = thresh;
+        musicSubmode = submode;
+        musicStepMs = step;
+      } else if (value.find("RAINBOW,") == 0) {
+        setRainbowMode();
+        int speed = 30;
+        int bright = 100;
+        sscanf(value.c_str(), "RAINBOW,%d,%d", &speed, &bright);
+        Serial.printf("[BLE] Modo RAINBOW: speed=%d bright=%d\n", speed, bright);
+        rainbowIntervalMs = speed;
+        rainbowBrightness = bright / 100.0;
+      } else {
+        Serial.println("[BLE] Comando no reconocido");
+      }
+    }
+  }
+};
+
+// ===============================
+// FUNCIONES DE COLOR Y MODOS
+// ===============================
 void setColor(int r, int g, int b) {
   redVal = r; greenVal = g; blueVal = b;
   ledcWrite(redChannel, redVal);
@@ -113,6 +155,72 @@ void applyColor(int r, int g, int b) {
   ledcWrite(blueChannel, b);
 }
 
+void setManualMode() {
+  manualMode = true;
+  musicMode = false;
+  rainbowMode = false;
+}
+
+void setMusicMode() {
+  manualMode = false;
+  musicMode = true;
+  rainbowMode = false;
+}
+
+void setRainbowMode() {
+  manualMode = false;
+  musicMode = false;
+  rainbowMode = true;
+}
+
+// ===============================
+// FUNCIONES DE COLOR (HSV/RGB, RAINBOW)
+// ===============================
+void applyRainbowColor(int hue) {
+  float r, g, b;
+  int region = hue / 60;
+  float f = (hue / 60.0) - region;
+  float q = 1 - f;
+  switch(region) {
+    case 0: r=1; g=f; b=0; break;
+    case 1: r=q; g=1; b=0; break;
+    case 2: r=0; g=1; b=f; break;
+    case 3: r=0; g=q; b=1; break;
+    case 4: r=f; g=0; b=1; break;
+    default: r=1; g=0; b=q; break;
+  }
+  int rv = (int)(r * 255 * rainbowBrightness);
+  int gv = (int)(g * 255 * rainbowBrightness);
+  int bv = (int)(b * 255 * rainbowBrightness);
+  rv = constrain(rv, 0, pwmMax);
+  gv = constrain(gv, 0, pwmMax);
+  bv = constrain(bv, 0, pwmMax);
+  ledcWrite(redChannel, rv);
+  ledcWrite(greenChannel, gv);
+  ledcWrite(blueChannel, bv);
+}
+
+void hsvHueToRgbInt(int hue, int &outR, int &outG, int &outB, float brightness=1.0f) {
+  float r,g,b;
+  int region = hue / 60;
+  float f = (hue / 60.0) - region;
+  float q = 1 - f;
+  switch(region) {
+    case 0: r=1; g=f; b=0; break;
+    case 1: r=q; g=1; b=0; break;
+    case 2: r=0; g=1; b=f; break;
+    case 3: r=0; g=q; b=1; break;
+    case 4: r=f; g=0; b=1; break;
+    default: r=1; g=0; b=q; break;
+  }
+  outR = (int)constrain(r * 255.0 * brightness, 0, pwmMax);
+  outG = (int)constrain(g * 255.0 * brightness, 0, pwmMax);
+  outB = (int)constrain(b * 255.0 * brightness, 0, pwmMax);
+}
+
+// ===============================
+// FUNCIONES DE AUDIO Y BEAT
+// ===============================
 void detectBeatAndReact() {
   static unsigned long lastSampleTime = 0;
   unsigned long now = micros();
@@ -169,102 +277,9 @@ void detectBeatAndReact() {
   }
 }
 
-void applyRainbowColor(int hue) {
-  float r, g, b;
-  int region = hue / 60;
-  float f = (hue / 60.0) - region;
-  float q = 1 - f;
-  switch(region) {
-    case 0: r=1; g=f; b=0; break;
-    case 1: r=q; g=1; b=0; break;
-    case 2: r=0; g=1; b=f; break;
-    case 3: r=0; g=q; b=1; break;
-    case 4: r=f; g=0; b=1; break;
-    default: r=1; g=0; b=q; break;
-  }
-  int rv = (int)(r * 255 * rainbowBrightness);
-  int gv = (int)(g * 255 * rainbowBrightness);
-  int bv = (int)(b * 255 * rainbowBrightness);
-  rv = constrain(rv, 0, pwmMax);
-  gv = constrain(gv, 0, pwmMax);
-  bv = constrain(bv, 0, pwmMax);
-  ledcWrite(redChannel, rv);
-  ledcWrite(greenChannel, gv);
-  ledcWrite(blueChannel, bv);
-}
-
-void hsvHueToRgbInt(int hue, int &outR, int &outG, int &outB, float brightness=1.0f) {
-  float r,g,b;
-  int region = hue / 60;
-  float f = (hue / 60.0) - region;
-  float q = 1 - f;
-  switch(region) {
-    case 0: r=1; g=f; b=0; break;
-    case 1: r=q; g=1; b=0; break;
-    case 2: r=0; g=1; b=f; break;
-    case 3: r=0; g=q; b=1; break;
-    case 4: r=f; g=0; b=1; break;
-    default: r=1; g=0; b=q; break;
-  }
-  outR = (int)constrain(r * 255.0 * brightness, 0, pwmMax);
-  outG = (int)constrain(g * 255.0 * brightness, 0, pwmMax);
-  outB = (int)constrain(b * 255.0 * brightness, 0, pwmMax);
-}
-
-void setManualMode() {
-  manualMode = true;
-  musicMode = false;
-  rainbowMode = false;
-}
-
-void setMusicMode() {
-  manualMode = false;
-  musicMode = true;
-  rainbowMode = false;
-}
-
-void setRainbowMode() {
-  manualMode = false;
-  musicMode = false;
-  rainbowMode = true;
-}
-
-class MyCallbacks: public BLECharacteristicCallbacks {
-  void onWrite(BLECharacteristic *pCharacteristic) {
-    std::string value = pCharacteristic->getValue();
-    if (value.length() > 0) {
-      Serial.print("[BLE] Comando recibido: ");
-      Serial.println(value.c_str());
-      // Espera comandos tipo: MANUAL,R,G,B | MUSIC,thresh,submode,step | RAINBOW,speed,brightness
-      if (value.find("MANUAL,") == 0) {
-        int r, g, b;
-        sscanf(value.c_str(), "MANUAL,%d,%d,%d", &r, &g, &b);
-        Serial.printf("[BLE] Modo MANUAL: R=%d G=%d B=%d\n", r, g, b);
-        setManualMode();
-        setColor(r, g, b);
-      } else if (value.find("MUSIC,") == 0) {
-        setMusicMode();
-        int thresh = 400, submode = 0, step = 200;
-        sscanf(value.c_str(), "MUSIC,%d,%d,%d", &thresh, &submode, &step);
-        Serial.printf("[BLE] Modo MUSIC: thresh=%d submode=%d step=%d\n", thresh, submode, step);
-        beatThreshold = thresh;
-        musicSubmode = submode;
-        musicStepMs = step;
-      } else if (value.find("RAINBOW,") == 0) {
-        setRainbowMode();
-        int speed = 30;
-        int bright = 100;
-        sscanf(value.c_str(), "RAINBOW,%d,%d", &speed, &bright);
-        Serial.printf("[BLE] Modo RAINBOW: speed=%d bright=%d\n", speed, bright);
-        rainbowIntervalMs = speed;
-        rainbowBrightness = bright / 100.0;
-      } else {
-        Serial.println("[BLE] Comando no reconocido");
-      }
-    }
-  }
-};
-
+// ===============================
+// SETUP Y LOOP PRINCIPAL
+// ===============================
 void setup() {
   Serial.begin(115200);
   // PWM

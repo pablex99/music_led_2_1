@@ -65,7 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: const Text('Controlador RGB'),
+          title: const Text(
+            'Controlador RGB',
+            style: TextStyle(
+              fontFamily: 'PressStart2P',
+              fontSize: 22, // Más grande que el resto, pero más pequeño para que se vea completo
+              color: Color(0xFF00FFFF),
+            ),
+          ),
           centerTitle: true,
         ),
         body: SingleChildScrollView(
@@ -102,7 +109,32 @@ class _HomeScreenState extends State<HomeScreen> {
                   )),
                 ),
                 const SizedBox(height: 32),
-                Text(statusMsg, style: const TextStyle(color: Color(0xFF00FFFF), fontFamily: 'PressStart2P', fontSize: 10)),
+                // Título 'Sincronización' igual a 'Controlador RGB'
+                const SizedBox(height: 16),
+                Text('Sincronización',
+                  style: const TextStyle(
+                    color: Color(0xFF00FFFF),
+                    fontFamily: 'PressStart2P',
+                    fontSize: 16, // Igual que 'Modo Música'
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                // Icono Bluetooth y estado juntos, centrados
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.bluetooth, color: Color(0xFF00FFFF), size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        isConnected ? 'Conectado a ESP32' : 'Desconectado',
+                        style: const TextStyle(color: Color(0xFF00FFFF), fontFamily: 'PressStart2P', fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
                 if (selectedMode == 0) ManualControlSection(btService: btService, isConnected: isConnected),
                 if (selectedMode == 1) MusicControlSection(btService: btService, isConnected: isConnected),
                 if (selectedMode == 2) RainbowControlSection(btService: btService, isConnected: isConnected),
@@ -204,7 +236,7 @@ class _MusicControlSectionState extends State<MusicControlSection> {
           children: [
             const Icon(Icons.surround_sound, color: Colors.deepPurple),
             const SizedBox(width: 8),
-            Text('Sensibilidad Beat', style: const TextStyle(fontSize: 12, fontFamily: 'PressStart2P')),
+            Text('Sensibilidad', style: const TextStyle(fontSize: 12, fontFamily: 'PressStart2P')),
           ],
         ),
         Slider(
@@ -214,7 +246,25 @@ class _MusicControlSectionState extends State<MusicControlSection> {
           onChanged: (v) => setState(() => beatThreshold = v),
           label: beatThreshold.round().toString(),
         ),
-        Text('Umbral actual: ${beatThreshold.round()}', style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+        Row(
+          children: const [
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('+ sensible', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text('- sensible', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
@@ -225,25 +275,31 @@ class _MusicControlSectionState extends State<MusicControlSection> {
                   ElevatedButton(
                     onPressed: () => setState(() => musicSubmode = 0),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: musicSubmode == 0 ? Colors.blue : Colors.grey[300],
-                      foregroundColor: musicSubmode == 0 ? Colors.white : Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
+                      backgroundColor: musicSubmode == 0 ? const Color(0xFF002B36) : Colors.grey[900],
+                      foregroundColor: const Color(0xFF00FFFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: const Size(80, 32),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: BorderSide(color: musicSubmode == 0 ? const Color(0xFF00FFFF) : Colors.transparent, width: 2),
+                      elevation: musicSubmode == 0 ? 6 : 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Monocolor', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
+                    child: const Text('Monocolor', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
                   ),
                   const SizedBox(height: 6),
                   ElevatedButton(
                     onPressed: () => setState(() => musicSubmode = 1),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: musicSubmode == 1 ? Colors.blue : Colors.grey[300],
-                      foregroundColor: musicSubmode == 1 ? Colors.white : Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
+                      backgroundColor: musicSubmode == 1 ? const Color(0xFF002B36) : Colors.grey[900],
+                      foregroundColor: const Color(0xFF00FFFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: const Size(80, 32),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: BorderSide(color: musicSubmode == 1 ? const Color(0xFF00FFFF) : Colors.transparent, width: 2),
+                      elevation: musicSubmode == 1 ? 6 : 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Multicolor', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
+                    child: const Text('Multicolor', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
                   ),
                 ],
               );
@@ -255,25 +311,31 @@ class _MusicControlSectionState extends State<MusicControlSection> {
                   ElevatedButton(
                     onPressed: () => setState(() => musicSubmode = 0),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: musicSubmode == 0 ? Colors.blue : Colors.grey[300],
-                      foregroundColor: musicSubmode == 0 ? Colors.white : Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
+                      backgroundColor: musicSubmode == 0 ? const Color(0xFF002B36) : Colors.grey[900],
+                      foregroundColor: const Color(0xFF00FFFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: const Size(80, 32),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: BorderSide(color: musicSubmode == 0 ? const Color(0xFF00FFFF) : Colors.transparent, width: 2),
+                      elevation: musicSubmode == 0 ? 6 : 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Monocolor', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
+                    child: const Text('Monocolor', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton(
                     onPressed: () => setState(() => musicSubmode = 1),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: musicSubmode == 1 ? Colors.blue : Colors.grey[300],
-                      foregroundColor: musicSubmode == 1 ? Colors.white : Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                      minimumSize: const Size(70, 26),
+                      backgroundColor: musicSubmode == 1 ? const Color(0xFF002B36) : Colors.grey[900],
+                      foregroundColor: const Color(0xFF00FFFF),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      minimumSize: const Size(80, 32),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      side: BorderSide(color: musicSubmode == 1 ? const Color(0xFF00FFFF) : Colors.transparent, width: 2),
+                      elevation: musicSubmode == 1 ? 6 : 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    child: const Text('Multicolor', style: TextStyle(fontSize: 9, fontFamily: 'PressStart2P')),
+                    child: const Text('Multicolor', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
                   ),
                 ],
               );
@@ -285,9 +347,9 @@ class _MusicControlSectionState extends State<MusicControlSection> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.timer, color: Colors.orange),
+              const Icon(Icons.speed, color: Colors.green),
               const SizedBox(width: 8),
-              Text('Duración paso multicolor', style: const TextStyle(fontSize: 12, fontFamily: 'PressStart2P')),
+              Text('Velocidad', style: const TextStyle(fontSize: 12, fontFamily: 'PressStart2P')),
             ],
           ),
           Slider(
@@ -297,7 +359,24 @@ class _MusicControlSectionState extends State<MusicControlSection> {
             onChanged: (v) => setState(() => musicStepMs = v),
             label: musicStepMs.round().toString(),
           ),
-          Text('${musicStepMs.round()} ms', style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+          Row(
+            children: const [
+              Expanded(
+                flex: 1,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Rápido', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('Lento', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+                ),
+              ),
+            ],
+          ),
         ],
         const SizedBox(height: 16),
         ElevatedButton(
@@ -361,7 +440,24 @@ class _RainbowControlSectionState extends State<RainbowControlSection> {
           onChanged: (v) => setState(() => rainbowSpeed = v),
           label: rainbowSpeed.round().toString(),
         ),
-        Text('${rainbowSpeed.round()} ms', style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+        Row(
+          children: const [
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Rápido', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text('Lento', style: TextStyle(fontSize: 10, fontFamily: 'PressStart2P')),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 16),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
