@@ -22,6 +22,24 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+    bool showEasterEgg = false;
+    bool showEasterEggMsg = false;
+    void triggerEasterEgg() {
+      setState(() {
+        showEasterEgg = true;
+      });
+      Future.delayed(const Duration(milliseconds: 1800), () {
+        setState(() {
+          showEasterEggMsg = true;
+        });
+        Future.delayed(const Duration(seconds: 3), () {
+          setState(() {
+            showEasterEgg = false;
+            showEasterEggMsg = false;
+          });
+        });
+      });
+    }
   int selectedMode = 0;
   BluetoothService btService = BluetoothService();
   bool isConnected = false;
@@ -65,82 +83,183 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: const Text(
-            'Controlador RGB',
-            style: TextStyle(
-              fontFamily: 'PressStart2P',
-              fontSize: 22, // Más grande que el resto, pero más pequeño para que se vea completo
-              color: Color(0xFF00FFFF),
+          title: GestureDetector(
+            onTap: () {
+              if (selectedMode == 0 && !showEasterEgg) {
+                triggerEasterEgg();
+              }
+            },
+            child: const Text(
+              'Controlador RGB',
+              style: TextStyle(
+                fontFamily: 'PressStart2P',
+                fontSize: 22,
+                color: Color(0xFF00FFFF),
+              ),
             ),
           ),
           centerTitle: true,
         ),
-        body: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(modes.length, (i) => Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: ElevatedButton(
-                      onPressed: () => setState(() => selectedMode = i),
+        body: Stack(
+          children: [
+            SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(modes.length, (i) => Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: ElevatedButton(
+                          onPressed: () => setState(() => selectedMode = i),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(modes[i].icon, size: 16, color: const Color(0xFF00FFFF)),
+                              const SizedBox(width: 4),
+                              Text(modes[i].name, style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
+                            ],
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: selectedMode == i ? const Color(0xFF002B36) : Colors.grey[900],
+                            foregroundColor: const Color(0xFF00FFFF),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            minimumSize: const Size(80, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            side: BorderSide(color: selectedMode == i ? const Color(0xFF00FFFF) : Colors.transparent, width: 2),
+                            elevation: selectedMode == i ? 6 : 0,
+                          ),
+                        ),
+                      )),
+                    ),
+                    const SizedBox(height: 32),
+                    // Título 'Sincronización' igual a 'Controlador RGB'
+                    const SizedBox(height: 16),
+                    Text('Sincronización',
+                      style: const TextStyle(
+                        color: Color(0xFF00FFFF),
+                        fontFamily: 'PressStart2P',
+                        fontSize: 16, // Igual que 'Modo Música'
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    // Icono Bluetooth y estado juntos, centrados
+                    Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(modes[i].icon, size: 16, color: const Color(0xFF00FFFF)),
-                          const SizedBox(width: 4),
-                          Text(modes[i].name, style: const TextStyle(fontSize: 10, fontFamily: 'PressStart2P', color: Color(0xFF00FFFF))),
+                          const Icon(Icons.bluetooth, color: Color(0xFF00FFFF), size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            isConnected ? 'Conectado a ESP32' : 'Desconectado',
+                            style: const TextStyle(color: Color(0xFF00FFFF), fontFamily: 'PressStart2P', fontSize: 12),
+                          ),
                         ],
                       ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: selectedMode == i ? const Color(0xFF002B36) : Colors.grey[900],
-                        foregroundColor: const Color(0xFF00FFFF),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        minimumSize: const Size(80, 32),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        side: BorderSide(color: selectedMode == i ? const Color(0xFF00FFFF) : Colors.transparent, width: 2),
-                        elevation: selectedMode == i ? 6 : 0,
+                    ),
+                    const SizedBox(height: 24),
+                    if (selectedMode == 0) ManualControlSection(btService: btService, isConnected: isConnected),
+                    if (selectedMode == 1) MusicControlSection(btService: btService, isConnected: isConnected),
+                    if (selectedMode == 2) RainbowControlSection(btService: btService, isConnected: isConnected),
+                  ],
+                ),
+              ),
+            ),
+            // Animación cyberpunk y mensaje
+            if (showEasterEgg)
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  opacity: showEasterEggMsg ? 0.7 : 1.0,
+                  duration: const Duration(milliseconds: 400),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.cyanAccent,
+                          Colors.purpleAccent,
+                          Colors.blueAccent,
+                          Colors.pinkAccent,
+                        ],
+                        stops: [0.0, 0.4, 0.7, 1.0],
                       ),
                     ),
-                  )),
-                ),
-                const SizedBox(height: 32),
-                // Título 'Sincronización' igual a 'Controlador RGB'
-                const SizedBox(height: 16),
-                Text('Sincronización',
-                  style: const TextStyle(
-                    color: Color(0xFF00FFFF),
-                    fontFamily: 'PressStart2P',
-                    fontSize: 16, // Igual que 'Modo Música'
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 10),
-                // Icono Bluetooth y estado juntos, centrados
-                Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.bluetooth, color: Color(0xFF00FFFF), size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        isConnected ? 'Conectado a ESP32' : 'Desconectado',
-                        style: const TextStyle(color: Color(0xFF00FFFF), fontFamily: 'PressStart2P', fontSize: 12),
+                    child: Center(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 800),
+                        width: showEasterEggMsg ? 220 : 320,
+                        height: showEasterEggMsg ? 80 : 160,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.pinkAccent.withOpacity(0.4),
+                              blurRadius: 24,
+                              spreadRadius: 8,
+                            ),
+                          ],
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.purple,
+                              Colors.cyan,
+                              Colors.blue,
+                              Colors.pink,
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                          ),
+                        ),
+                        child: showEasterEggMsg
+                          ? Center(
+                              child: Text(
+                                '¡Bienvenido al modo cyberpunk!',
+                                style: const TextStyle(
+                                  fontFamily: 'PressStart2P',
+                                  fontSize: 13,
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.pinkAccent,
+                                      blurRadius: 8,
+                                    ),
+                                  ],
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.flash_on, color: Colors.yellowAccent, size: 48),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'CYBERPUNK',
+                                  style: const TextStyle(
+                                    fontFamily: 'PressStart2P',
+                                    fontSize: 18,
+                                    color: Colors.white,
+                                    letterSpacing: 2,
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.cyanAccent,
+                                        blurRadius: 8,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                if (selectedMode == 0) ManualControlSection(btService: btService, isConnected: isConnected),
-                if (selectedMode == 1) MusicControlSection(btService: btService, isConnected: isConnected),
-                if (selectedMode == 2) RainbowControlSection(btService: btService, isConnected: isConnected),
-              ],
-            ),
-          ),
+              ),
+          ],
         ),
       ),
     );
