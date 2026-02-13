@@ -8,7 +8,6 @@ class BluetoothService {
       await [
         Permission.bluetoothScan,
         Permission.bluetoothConnect,
-        Permission.locationWhenInUse,
       ].request();
     }
   final FlutterReactiveBle ble = FlutterReactiveBle();

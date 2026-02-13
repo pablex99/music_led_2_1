@@ -37,8 +37,10 @@ class _ColorWheelPickerState extends State<ColorWheelPicker> {
           pickerAreaBorderRadius: const BorderRadius.all(Radius.circular(12)),
         ),
         const SizedBox(height: 8),
-        Text('Color seleccionado: #${currentColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
-          style: const TextStyle(fontFamily: 'PressStart2P', fontSize: 10)),
+        Text(
+          'Color seleccionado: #${currentColor.value.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase()}',
+          style: const TextStyle(fontFamily: 'PressStart2P', fontSize: 10, color: Color(0xFFEEEEEE)),
+        ),
       ],
     );
   }
