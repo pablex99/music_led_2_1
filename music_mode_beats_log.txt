@@ -1,0 +1,28 @@
+# Log de beats (líneas verticales en el gráfico RMS)
+# t: tiempo en segundos desde inicio del script
+# raw: RMS raw en ese instante
+# rms: RMS suavizado en ese instante
+# dt: diferencia de tiempo desde el beat anterior (s)
+[BEAT] t=2.461 raw=300.000 rms=462.300 dt=1.871
+[BEAT] t=4.366 raw=298.200 rms=415.500 dt=1.906
+[BEAT] t=6.351 raw=282.100 rms=420.800 dt=1.985
+[BEAT] t=8.305 raw=277.300 rms=430.700 dt=1.954
+[BEAT] t=10.067 raw=310.100 rms=424.700 dt=1.762
+[BEAT] t=12.112 raw=379.200 rms=434.200 dt=2.045
+[BEAT] t=14.023 raw=335.700 rms=449.500 dt=1.911
+[BEAT] t=15.768 raw=298.700 rms=377.300 dt=1.745
+[BEAT] t=17.694 raw=305.800 rms=426.000 dt=1.926
+[BEAT] t=19.617 raw=305.900 rms=422.100 dt=1.922
+[BEAT] t=21.566 raw=297.800 rms=406.200 dt=1.950
+[BEAT] t=23.453 raw=336.300 rms=424.100 dt=1.887
+[BEAT] t=25.550 raw=319.000 rms=394.800 dt=2.097
+[BEAT] t=27.320 raw=307.100 rms=421.200 dt=1.770
+[BEAT] t=29.232 raw=419.200 rms=478.100 dt=1.911
+[BEAT] t=31.052 raw=431.300 rms=468.500 dt=1.821
+[BEAT] t=33.065 raw=425.900 rms=468.900 dt=2.012
+[BEAT] t=34.986 raw=446.500 rms=506.100 dt=1.921
+[BEAT] t=36.961 raw=444.100 rms=477.100 dt=1.975
+[BEAT] t=38.745 raw=437.800 rms=474.900 dt=1.784
+[BEAT] t=40.634 raw=422.000 rms=494.300 dt=1.889
+[BEAT] t=42.540 raw=444.500 rms=462.900 dt=1.906
+# Promedio dt entre beats: 1.907 s (n=22)

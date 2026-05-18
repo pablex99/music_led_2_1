@@ -61,12 +61,35 @@ const double bandFluxSmoothing = 0.82;
 const double bandMaxDecay = 0.92;
 const double bandSensitivity[NUM_FLUX_BANDS] = {1.35, 1.45, 1.55};
 
+struct MeasurementReport {
+  double rms = 0.0;
+  double rawRms = 0.0;
+  double agcGain = 0.0;
+  bool audioSilent = true;
+  bool beatDetected = false;
+  int dynamicHold = 0;
+  float beatInterval = 0.0f;
+  float beatBrightness = 0.0f;
+  double bandFlux[NUM_FLUX_BANDS] = {0};
+  double bandThreshold[NUM_FLUX_BANDS] = {0};
+  double bandAvg[NUM_FLUX_BANDS] = {0};
+  double bandMax[NUM_FLUX_BANDS] = {0};
+};
+
+MeasurementReport lastMeasurement;
+unsigned long lastMeasurementPrintMs = 0;
+const unsigned long measurementPrintIntervalMs = 500;
+const char *bandLabels[NUM_FLUX_BANDS] = {"LOW", "MID", "HIGH"};
+
 // ===============================
 // VARIABLES DE MODOS DE OPERACIÓN
 // ===============================
 bool musicMode = false;
 bool rainbowMode = false;
 bool manualMode = true;
+bool debugEnabled = true;
+
+#define DEBUG_PRINTF(...) do { if (debugEnabled) Serial.printf(__VA_ARGS__); } while (0)
 
 // ===============================
 // VARIABLES PARA MODO ARCOÍRIS
@@ -121,6 +144,11 @@ void setColor(int r, int g, int b);
 void applyColor(int r, int g, int b);
 void applyRainbowColor(int hue);
 void hsvHueToRgbInt(int hue, int &outR, int &outG, int &outB, float brightness = 1.0f);
+void logMeasurementReport(bool force = false);
+void printMeasurementReport();
+void handleSerialConsole();
+void printSerialHelp();
+const char *currentModeLabel();
 
 // ===============================
 // UTILIDADES
@@ -136,6 +164,128 @@ std::vector<String> split(const String &str, char sep) {
   }
   tokens.push_back(str.substring(start));
   return tokens;
+}
+
+const char *currentModeLabel() {
+  if (musicMode) return "MUSIC";
+  if (rainbowMode) return "RAINBOW";
+  if (manualMode) return "MANUAL";
+  return "IDLE";
+}
+
+void printMeasurementReport() {
+  Serial.printf(
+    "[MEAS] mode=%s beat=%d silent=%d rms=%.1f raw=%.1f gain=%.2f interval=%.0fms hold=%d bright=%.2f\n",
+    currentModeLabel(),
+    lastMeasurement.beatDetected,
+    lastMeasurement.audioSilent,
+    lastMeasurement.rms,
+    lastMeasurement.rawRms,
+    lastMeasurement.agcGain,
+    lastMeasurement.beatInterval,
+    lastMeasurement.dynamicHold,
+    lastMeasurement.beatBrightness
+  );
+
+  for (int idx = 0; idx < NUM_FLUX_BANDS; ++idx) {
+    double threshold = lastMeasurement.bandThreshold[idx];
+    double ratio = threshold > 1.0 ? lastMeasurement.bandFlux[idx] / threshold : 0.0;
+    Serial.printf(
+      "[MEAS] %-4s flux=%.1f thr=%.1f ratio=%.2f avg=%.1f max=%.1f\n",
+      bandLabels[idx],
+      lastMeasurement.bandFlux[idx],
+      threshold,
+      ratio,
+      lastMeasurement.bandAvg[idx],
+      lastMeasurement.bandMax[idx]
+    );
+  }
+}
+
+void logMeasurementReport(bool force) {
+  if (!debugEnabled && !force) return;
+  unsigned long now = millis();
+  if (!force && (now - lastMeasurementPrintMs) < measurementPrintIntervalMs) return;
+  lastMeasurementPrintMs = now;
+  printMeasurementReport();
+}
+
+void printSerialHelp() {
+  Serial.println("[SER] Comandos disponibles por USB:");
+  Serial.println("      HELP                -> Muestra este texto");
+  Serial.println("      STATS / INFO        -> Imprime la última medición (LOW/MID/HIGH)");
+  Serial.println("      DEBUG <0|1>         -> Desactiva/activa captura y logs");
+  Serial.println("      MODE <MUSIC|RAINBOW|MANUAL> -> Cambia de modo rápidamente");
+  Serial.println("      COLOR <R G B>       -> Fuerza color manual (0-255)");
+}
+
+void handleSerialConsole() {
+  while (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    if (line.length() == 0) {
+      continue;
+    }
+
+    std::vector<String> rawTokens = split(line, ' ');
+    std::vector<String> tokens;
+    for (const auto &token : rawTokens) {
+      if (token.length() > 0) {
+        tokens.push_back(token);
+      }
+    }
+    if (tokens.empty()) {
+      continue;
+    }
+
+    String cmd = tokens[0];
+    cmd.toUpperCase();
+
+    if (cmd == "HELP") {
+      printSerialHelp();
+      continue;
+    }
+
+    if (cmd == "STATS" || cmd == "INFO") {
+      logMeasurementReport(true);
+      continue;
+    }
+
+    if (cmd == "DEBUG" && tokens.size() >= 2) {
+      debugEnabled = tokens[1].toInt() != 0;
+      Serial.printf("[SER] DEBUG %s\n", debugEnabled ? "ON" : "OFF");
+      continue;
+    }
+
+    if (cmd == "MODE" && tokens.size() >= 2) {
+      String mode = tokens[1];
+      mode.toUpperCase();
+      if (mode == "MUSIC") {
+        setMusicMode();
+      } else if (mode == "RAINBOW") {
+        setRainbowMode();
+      } else if (mode == "MANUAL") {
+        setManualMode();
+      } else {
+        Serial.println("[SER] Modo no reconocido. Usa MUSIC/RAINBOW/MANUAL");
+        continue;
+      }
+      Serial.printf("[SER] Modo cambiado a %s\n", currentModeLabel());
+      continue;
+    }
+
+    if (cmd == "COLOR" && tokens.size() >= 4) {
+      int r = tokens[1].toInt();
+      int g = tokens[2].toInt();
+      int b = tokens[3].toInt();
+      setColor(r, g, b);
+      setManualMode();
+      Serial.printf("[SER] COLOR manual: %d,%d,%d\n", r, g, b);
+      continue;
+    }
+
+    Serial.println("[SER] Comando no reconocido. Escribe HELP para ver opciones.");
+  }
 }
 
 class MyServerCallbacks : public BLEServerCallbacks {
@@ -179,6 +329,9 @@ class MyCallbacks : public BLECharacteristicCallbacks {
       setColor(r, g, b);
       setManualMode();
       Serial.printf("[BLE] MANUAL comando: %d,%d,%d\n", r, g, b);
+    } else if (parts[0] == "DEBUG" && parts.size() >= 2) {
+      debugEnabled = parts[1].toInt() != 0;
+      Serial.printf("[BLE] DEBUG %s\n", debugEnabled ? "ON" : "OFF");
     } else if (parts[0] == "MUSIC" && parts.size() >= 4) {
       beatThreshold = parts[1].toDouble();
       float mappedSensitivity = parts[1].toFloat() / 400.0f;
@@ -291,6 +444,7 @@ void detectBeatAndReact() {
   static unsigned long nextSampleTime = micros();
   static float smoothedRms = 0.0f;
   static float smoothedRawRms = 0.0f;
+  static bool lastSilenceState = false;
 
   for (int i = 0; i < samples; ++i) {
     while ((micros() - nextSampleTime) < samplingPeriodUs) {
@@ -337,14 +491,23 @@ void detectBeatAndReact() {
     smoothedRawRms = 0.9f * smoothedRawRms + 0.1f * rawRms;
   }
   float beatBrightness = constrain(smoothedRms / 900.0f, 0.2f, 1.0f);
+  lastMeasurement.rms = smoothedRms;
+  lastMeasurement.rawRms = smoothedRawRms;
+  lastMeasurement.agcGain = agcGain;
+  lastMeasurement.beatBrightness = beatBrightness;
 
   unsigned long nowMs = millis();
   if (smoothedRawRms > silenceRawRmsFloor) {
     lastAudioActiveMs = nowMs;
   }
   bool audioSilent = (nowMs - lastAudioActiveMs) > silenceReleaseMs;
+  if (audioSilent != lastSilenceState && debugEnabled) {
+    DEBUG_PRINTF("[DBG] Audio %s (raw RMS=%.1f)\n", audioSilent ? "silenced" : "active", smoothedRawRms);
+  }
+  lastSilenceState = audioSilent;
+  lastMeasurement.audioSilent = audioSilent;
   if (audioSilent) {
-    if ((nowMs - lastBeatFlashOn) > beatFlashDuration) {
+    if (musicMode && (nowMs - lastBeatFlashOn) > beatFlashDuration) {
       applyColor(0, 0, 0);
     }
     for (int i = 0; i < samples / 2; ++i) {
@@ -353,7 +516,16 @@ void detectBeatAndReact() {
     for (int idx = 0; idx < NUM_FLUX_BANDS; ++idx) {
       fluxBands[idx].avgFlux *= bandFluxSmoothing;
       fluxBands[idx].maxFlux *= bandMaxDecay;
+      lastMeasurement.bandFlux[idx] = 0.0;
+      lastMeasurement.bandThreshold[idx] = 0.0;
+      lastMeasurement.bandAvg[idx] = fluxBands[idx].avgFlux;
+      lastMeasurement.bandMax[idx] = fluxBands[idx].maxFlux;
     }
+    DEBUG_PRINTF("[DBG] FFT omitida: silencio durante %lu ms\n", nowMs - lastAudioActiveMs);
+    lastMeasurement.beatDetected = false;
+    lastMeasurement.dynamicHold = beatHoldTime;
+    lastMeasurement.beatInterval = rollingBeatIntervalMs;
+    logMeasurementReport();
     return;
   }
 
@@ -366,6 +538,7 @@ void detectBeatAndReact() {
   if (rollingBeatIntervalMs > 5.0f) {
     dynamicHold = max(dynamicHold, static_cast<int>(rollingBeatIntervalMs * 0.35f));
   }
+  lastMeasurement.dynamicHold = dynamicHold;
 
   bool beatDetected = false;
   for (int idx = 0; idx < NUM_FLUX_BANDS; ++idx) {
@@ -389,6 +562,11 @@ void detectBeatAndReact() {
     double baseThreshold = band.avgFlux * bandSensitivity[idx] * beatSensitivity;
     double peakThreshold = band.maxFlux * 0.55;
     double threshold = max(baseThreshold, peakThreshold);
+    lastMeasurement.bandFlux[idx] = bandFlux;
+    lastMeasurement.bandThreshold[idx] = threshold;
+    lastMeasurement.bandAvg[idx] = band.avgFlux;
+    lastMeasurement.bandMax[idx] = band.maxFlux;
+    DEBUG_PRINTF("[DBG] Band %d flux=%.1f thr=%.1f avg=%.1f max=%.1f\n", idx, bandFlux, threshold, band.avgFlux, band.maxFlux);
 
     if (bandFlux > threshold && (nowMs - lastBeatTime) > static_cast<unsigned long>(dynamicHold)) {
       beatDetected = true;
@@ -413,13 +591,29 @@ void detectBeatAndReact() {
     }
     brightness = constrain(brightness, 0.15f, 1.0f);
 
-    int rv = static_cast<int>(musicRed * brightness);
-    int gv = static_cast<int>(musicGreen * brightness);
-    int bv = static_cast<int>(musicBlue * brightness);
-    applyColor(rv, gv, bv);
-  } else if ((nowMs - lastBeatFlashOn) > beatFlashDuration) {
+    if (musicMode) {
+      int rv = static_cast<int>(musicRed * brightness);
+      int gv = static_cast<int>(musicGreen * brightness);
+      int bv = static_cast<int>(musicBlue * brightness);
+      applyColor(rv, gv, bv);
+      DEBUG_PRINTF("[DBG] Beat! brightness=%.2f color=%d,%d,%d interval=%.0fms\n", brightness, rv, gv, bv, rollingBeatIntervalMs);
+    } else {
+      DEBUG_PRINTF("[DBG] Beat detectado (modo %s) brightness=%.2f interval=%.0fms\n", currentModeLabel(), brightness, rollingBeatIntervalMs);
+    }
+  } else if (musicMode && (nowMs - lastBeatFlashOn) > beatFlashDuration) {
     applyColor(0, 0, 0);
   }
+
+  lastMeasurement.beatDetected = beatDetected;
+  lastMeasurement.beatInterval = rollingBeatIntervalMs;
+  lastMeasurement.beatBrightness = beatBrightness;
+  DEBUG_PRINTF("[DBG] RMSraw=%.1f RMS=%.1f beat=%d hold=%d silent=%d\n",
+               smoothedRawRms,
+               smoothedRms,
+               beatDetected,
+               dynamicHold,
+               audioSilent);
+  logMeasurementReport();
 }
 
 // ===============================
@@ -428,6 +622,8 @@ void detectBeatAndReact() {
 void setup() {
   Serial.begin(115200);
   analogReadResolution(12);
+  Serial.println("[SYS] Music LED listo. Escribe HELP en el monitor serial para comandos de depuración.");
+  printSerialHelp();
 
   ledcSetup(redChannel, pwmFreq, pwmResolution);
   ledcAttachPin(redPin, redChannel);
@@ -460,6 +656,7 @@ void setup() {
 }
 
 void loop() {
+  handleSerialConsole();
   unsigned long currentMillis = millis();
 
   if (musicMode) {
@@ -472,7 +669,6 @@ void loop() {
       musicGreen = g;
       musicBlue = b;
     }
-    detectBeatAndReact();
   } else if (rainbowMode) {
     if (currentMillis - lastColorChange > rainbowIntervalMs) {
       rainbowHue = (rainbowHue + 1) % 360;
@@ -481,6 +677,10 @@ void loop() {
     }
   } else if (manualMode) {
     applyColor(redVal, greenVal, blueVal);
+  }
+
+  if (musicMode || debugEnabled) {
+    detectBeatAndReact();
   }
 
   delay(2);
